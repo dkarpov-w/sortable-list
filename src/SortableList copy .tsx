@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
 import useDragPreventAnimation from './hooks/useDragPreventAnimation'
-import useLongTouch from './hooks/useLongTouch'
 
 enum Position {
   before = 0,
@@ -33,12 +32,10 @@ const shouldInsertBefore = (sourceIndex: number | null, targetIndex: number | nu
   if (targetIndex >= sourceIndex) {
     return targetIndex === index - 1
   }
-
   return targetIndex === index
 }
 
 const shouldInsertAfter = (sourceIndex: number | null, targetIndex: number | null, index: number) => {
-
   if (sourceIndex == null || targetIndex == null) {
     return false
   }
@@ -80,16 +77,15 @@ function calculationTargetIndex(position: Position, sourceIndex: number, index: 
 }
 
 function getTargetIndex(e: React.TouchEvent<HTMLDivElement>): number | null {
-  const { clientY, clientX } = e?.touches[0] || {}
+  const { pageY, pageX } = e?.touches[0] || {}
 
-  if (typeof clientY !== 'number') return null
+  if (typeof pageY !== 'number') return null
   
-  const targetElemContainer = document.elementFromPoint(clientX, clientY)?.parentElement
+  const targetElemContainer = document.elementFromPoint(pageX, pageY)?.parentElement
   const targetIndex = targetElemContainer?.getAttribute('data-index')
 
   return targetIndex ? Number(targetIndex) : null
 }
-function stopTextHighline(e: any) { e.preventDefault() }
 
 export function SortableList<T>(props: SortableListProps<T>) {
     const [sourceIndex, setSourceIndex] = useState<number | null>(null)
@@ -98,71 +94,26 @@ export function SortableList<T>(props: SortableListProps<T>) {
     const [pointer, setPointer] = useState<[number, number]>([0, 0]);
     const [pointerType, setPointerType] = useState<string | null>(null);
     const [draggableSize, setDraggableSize] = useState<[number, number]>([0, 0]);
-    const [isScroll1, setIsScroll1] = useState<any>(null);
-    const [isScroll2, setIsScroll2] = useState<any>(null);
 
     const parentRef = useRef<HTMLDivElement | null>(null);
     const { items, direction = 'vertical', className, style, onSort } = props
+    const handleScroll = (direction: 'up' | 'down') => {
 
-    const handleScroll = (direction: 'up' | 'down', ...a) => {
-      const [isWindow, isContainer] = a;
-
+      console.log('direction scroll', direction)
       if (parentRef.current) {
         const container = parentRef.current;
         const scrollSpeed = 10; // Adjust scroll speed as needed
+  
         if (direction === 'up') {
-          console.log('up');
-          (isWindow && !isContainer) && (document.documentElement.scrollTop -= scrollSpeed);
-          (!isWindow && isContainer) && (container.scrollTop -= scrollSpeed);
-        }
+          console.log('up')
+          container.scrollTop -= scrollSpeed;
+        } else if (direction === 'down') {
+          console.log('down')
 
-        if (direction === 'down') {
-          console.log('down');
-
-          (isWindow && !isContainer) && (document.documentElement.scrollTop += scrollSpeed);
-          (!isWindow && isContainer) && (container.scrollTop += scrollSpeed);
+          container.scrollTop += scrollSpeed;
         }
       }
     };
-
-    const setPointerPosition = (e: React.TouchEvent<HTMLDivElement> | TouchEvent) => {
-      e.preventDefault();
-      const { clientX, clientY } = e?.touches[0] || {}
-      clientX && setPointer([clientX, clientY]);
-    };
-
-    const handleLongTouchStart = (e: React.TouchEvent<HTMLDivElement>, index) => {
-      document.addEventListener('touchmove', setPointerPosition, { passive: false });
-      document.addEventListener('selectstart', stopTextHighline);
-      const { clientX, clientY } = e?.touches[0] || {}
-
-      const { width, height } = e.touches[0]?.target?.getBoundingClientRect?.()
-
-      setDraggableSize([width, height])
-      setPointer([clientX, clientY])
-      setSourceIndex(index)
-      setHoveredItem(index)
-    }
-
-    const handleLongTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-      if (sourceIndex !== null && targetIndex !== null) {
-        onSort(sourceIndex, targetIndex)
-      }
-
-      setTargetIndex(null)
-      setSourceIndex(null)
-      setHoveredItem(null)
-      document.removeEventListener('touchmove', setPointerPosition)
-      document.removeEventListener('selectstart', stopTextHighline)
-    }
-
-    useEffect(() => {
-      const isScrollContainer = parentRef?.current ? 
-      parentRef?.current?.scrollHeight !== parentRef?.current?.clientHeight : null;
-      const isScrollScreen = document.documentElement.clientHeight !== document.documentElement.scrollHeight;
-      setIsScroll1(isScrollScreen);
-      setIsScroll2(isScrollContainer);
-    }, [parentRef?.current])
 
     useEffect(() => {
       const detectPointerType = (e: PointerEvent) => {
@@ -177,23 +128,56 @@ export function SortableList<T>(props: SortableListProps<T>) {
     })
 
     useDragPreventAnimation(sourceIndex)
-    const { onLongTouchStart, onLongTouchEnd } = useLongTouch(handleLongTouchStart, handleLongTouchEnd)
+
+    useEffect(() => {
+      const stopTextHighline = (e: any) => e.preventDefault();
+  
+      document.addEventListener('selectstart', stopTextHighline);
+
+      return () => document.removeEventListener('selectstart', stopTextHighline);
+    }, []);
+
+    useEffect(() => {
+      const handler = (e: React.TouchEvent<HTMLDivElement> | TouchEvent) => {
+        const { clientX, clientY } = e?.touches[0] || {}
+        clientX && setPointer([clientX, clientY]);
+
+        console.log('e.touches[0].clientY > containerHeight', e.touches[0].clientY, parentRef.current?.clientHeight)
+        // Check if the dragged item is close to the top edge of the container
+        if (e.touches[0].clientY < 50) {
+          handleScroll('up'); // Scroll up
+        }
+  
+        // Check if the dragged item is close to the bottom edge of the container
+        const containerHeight = parentRef.current?.clientHeight || 0;
+        if (e.touches[0].clientY > containerHeight - 50) {
+          handleScroll('down'); // Scroll down
+        }
+      };
+  
+      document.addEventListener('touchmove', handler);
+  
+      return () => document.removeEventListener('touchmove', handler);
+    }, []);
 
     return (
       <>
-      {sourceIndex !== null && (pointerType !== 'mouse') && (
+      {sourceIndex === "rt" && (pointerType !== 'mouse') && (
         <div
           className={className}
           style={{
             ...style,
             display: 'flex',
             width: `${draggableSize[0]}px`,
-            position: 'fixed',
+            position: 'absolute',
             margin: 0,
             padding: 0,
             pointerEvents: 'none',
             left: `${pointer[0] - draggableSize[0]/10}px`,
             top: `${pointer[1] - draggableSize[1]/10}px`
+          }}
+          onTouchMove={e => {
+            
           }}
         >
           {props.children({
@@ -209,6 +193,8 @@ export function SortableList<T>(props: SortableListProps<T>) {
         <div ref={parentRef} className={className} style={{ ...style }}>
           {items.map((item, index) =>
             <div
+              // onClick={(e) => console.log(parentRef?.current?.scrollWidth, parentRef?.current?.clientWidth, 
+              //   parentRef?.current?.scrollHeight, parentRef?.current?.clientHeight)}
               data-index={index}
               draggable={pointerType === 'mouse'}
               key={index}
@@ -238,10 +224,24 @@ export function SortableList<T>(props: SortableListProps<T>) {
                 setHoveredItem(null)
               }}
               onTouchStart={(e) => {
-                onLongTouchStart(e, index)
+                const { clientX, clientY } = e?.touches[0] || {}
+
+                const { width, height } = e.currentTarget.getBoundingClientRect()
+                console.log(e.currentTarget.getBoundingClientRect())
+                setDraggableSize([width, height])
+                setPointer([clientX, clientY])
+                //setScroll([])
+                setSourceIndex(index)
+                setHoveredItem(index)
               }}
               onTouchEnd={(e) => {
-                onLongTouchEnd(e)
+                if (sourceIndex !== null && targetIndex !== null) {
+                  onSort(sourceIndex, targetIndex)
+                }
+
+                setTargetIndex(null)
+                setSourceIndex(null)
+                setHoveredItem(null)
               }}
               onTouchMove={(e) => {
                 if (sourceIndex === null) {
@@ -249,17 +249,6 @@ export function SortableList<T>(props: SortableListProps<T>) {
                 }
 
                 const targetIndex = getTargetIndex(e)
-
-                // Check if the dragged item is close to the top edge of the container
-                if (e.touches[0].clientY < 50) {
-                  handleScroll('up', isScroll1, isScroll2); // Scroll up
-                }
-                
-                // Check if the dragged item is close to the bottom edge of the container
-                const containerHeight = Math.min(parentRef?.current?.clientHeight || 0, document.documentElement.clientHeight);
-                if (e.touches[0].clientY > containerHeight - 50) {
-                  handleScroll('down', isScroll1, isScroll2); // Scroll down
-                }
 
                 setTargetIndex(targetIndex)
               }}

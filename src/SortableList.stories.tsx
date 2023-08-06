@@ -54,6 +54,26 @@ const createPreset = () => [
   { title: 'item #3'},
   { title: 'item #4'},
   { title: 'item #5'},
+  { title: 'item #1'},
+  { title: 'item #2'},
+  { title: 'item #3'},
+  { title: 'item #4'},
+  { title: 'item #5'},
+  { title: 'item #1'},
+  { title: 'item #2'},
+  { title: 'item #3'},
+  { title: 'item #4'},
+  { title: 'item #5'},
+  { title: 'item #1'},
+  { title: 'item #2'},
+  { title: 'item #3'},
+  { title: 'item #4'},
+  { title: 'item #5'},
+  { title: 'item #1'},
+  { title: 'item #2'},
+  { title: 'item #3'},
+  { title: 'item #4'},
+  { title: 'item #5'},
 ]
 
 const createSortHandler = (setItems: Dispatch<SetStateAction<Item[]>>) => (sourceIndex: number, targetIndex: number) => {
@@ -86,9 +106,12 @@ export const Vertical = () => {
   const sortHandler = useCallback(createSortHandler(setItems), [])
 
   return (
+    <div style={{ height: '100hv', backgroundColor: 'red', overflow: 'auto'}}               onClick={(e) =>  console.log(e.target.scrollWidth, e.target.clientWidth, 
+      e.target.scrollHeight, e.target.clientHeight)}>
     <SortableList style={verticalListStyle} items={items} onSort={sortHandler} direction='vertical'>
       {props => <ItemVerticalComponent {...props} />}
     </SortableList>
+    </div>
   )
 };
 
